@@ -1,6 +1,8 @@
 import csv
 
 import re
+
+from ofxstatement.ofx import OfxWriter
 from ofxstatement import statement
 from ofxstatement.plugin import Plugin
 from ofxstatement.parser import CsvStatementParser
@@ -61,14 +63,15 @@ class TmbCdParser(CsvStatementParser):
         """
 
         #Valuable lines has 9 elements
-        if len(line)!= 8:
+        if len(line) <=9:
             if line[0] == "Opening Balance":
                 res = line[1].split();
                 self.statement.currency=res[0]
                 self.statement.start_balance=D(res[1])
+        elif len(line) < 8:
             return None
 
-        if not (line[4] == "USD"):
+        if (self.statement.currency and  not (line[4] ==  self.statement.currency)):
             return None
 
         date = line[0]
