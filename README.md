@@ -1,10 +1,10 @@
-# ofxstatement-be-ing 
+# ofxstatement-cd-tmb 
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # TMB Congo plugin for ofxstatement 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This project provides a custom plugin for [ofxstatement](https://github.com/kedder/ofxstatement) for TMB (CD). It is based
+This project provides a custom plugin for [ofxstatement](https://github.com/kedder/ofxstatement) for Trust Merchant Bank (CD). It is based
 on the work done by JBBandos (https://github.com/jbbandos/ofxstatement-be-ing).
 
 `ofxstatement`_ is a tool to convert proprietary bank statement to OFX format, suitable for importing to GnuCash / Odoo. Plugin for ofxstatement parses a particular proprietary bank statement format and produces common data structure, that is then formatted into an OFX file.
