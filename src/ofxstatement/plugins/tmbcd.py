@@ -1,14 +1,11 @@
 import csv
-
 import re
-
-from ofxstatement.ofx import OfxWriter
-from ofxstatement import statement
-from ofxstatement.plugin import Plugin
-from ofxstatement.parser import CsvStatementParser
 from decimal import Decimal as D
-from ofxstatement.parser import StatementParser
-from ofxstatement.statement import StatementLine
+
+from ofxstatement import statement
+from ofxstatement.parser import CsvStatementParser
+from ofxstatement.plugin import Plugin
+
 
 class TmbCdPlugin(Plugin):
     """TMB Congo Plugin
