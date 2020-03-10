@@ -71,6 +71,7 @@ class TmbCdParser(CsvStatementParser):
         if (self.statement.currency and  not (line[4] ==  self.statement.currency)):
             return None
 
+
         date = line[0]
         date_value = line[1]
         description = line[2]
@@ -78,6 +79,10 @@ class TmbCdParser(CsvStatementParser):
         currency = line[4]
         amount = self.fix_amount(line[5])
         line[5] = amount
+        if(date.find('-') != -1):
+            self.date_format = "%d-%b-%y"
+        else:
+            self.date_format = "%d %b %Y"
 
         stmtline = super(TmbCdParser, self).parse_record(line)
         stmtline.trntype = 'DEBIT' if stmtline.amount < 0 else 'CREDIT'
