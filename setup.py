@@ -10,7 +10,7 @@ from distutils.core import setup
 
 import unittest
 
-version = "1.0.0"
+version = "1.0.1"
 
 with open('README.md') as f:
     long_description = f.read()
