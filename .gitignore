@@ -3,3 +3,4 @@
 /build/
 .idea
 /src/ofxstatement/out/
+/src/ofxstatement/examples/test.csv

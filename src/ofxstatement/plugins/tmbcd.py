@@ -52,7 +52,12 @@ class TmbCdParser(CsvStatementParser):
         dbt_subst = "-\\1"
         cdt_subst = ""
         result = re.sub(dbt_re, dbt_subst, value, 0)
-        return re.sub(cdt_re, cdt_subst, result, 0)
+        result = re.sub(cdt_re, cdt_subst, result, 0)
+
+        #Consider "--" as a reversal entry
+        reversal_re = r"^--"
+        reversal_subst = ""
+        return re.sub(reversal_re, reversal_subst, result, 0)
 
 
     def parse_record(self, line):
@@ -65,10 +70,12 @@ class TmbCdParser(CsvStatementParser):
                 res = line[1].split();
                 self.statement.currency=res[0]
                 self.statement.start_balance=D(res[1])
+                return None
         elif len(line) < 8:
             return None
 
-        if (self.statement.currency and  not (line[4] ==  self.statement.currency)):
+
+        if (self.statement.currency and  (len(line) < 4 or not (line[4] ==  self.statement.currency))):
             return None
 
 
