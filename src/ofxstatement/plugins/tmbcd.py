@@ -1,10 +1,13 @@
 import csv
 import re
+import random
+
 from decimal import Decimal as D
 
 from ofxstatement import statement
 from ofxstatement.statement import generate_transaction_id
 #TODO change to generate_unique_transaction_id as soon as it is released
+
 from ofxstatement.parser import CsvStatementParser
 from ofxstatement.plugin import Plugin
 
@@ -95,6 +98,6 @@ class TmbCdParser(CsvStatementParser):
 
         stmtline = super(TmbCdParser, self).parse_record(line)
         stmtline.trntype = 'DEBIT' if stmtline.amount < 0 else 'CREDIT'
-        stmtline.id = generate_transaction_id(stmtline)
+        stmtline.id = generate_transaction_id(stmtline) + str(random.randint(1, 1000))
 
         return stmtline
