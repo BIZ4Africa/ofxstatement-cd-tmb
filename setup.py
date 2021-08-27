@@ -10,7 +10,7 @@ from distutils.core import setup
 
 import unittest
 
-version = "2.0.2"
+version = "2.0.3"
 
 with open('README.md') as f:
     long_description = f.read()
@@ -20,7 +20,7 @@ setup(name='ofxstatement-cd-tmb',
       author="Vincent Luba",
       author_email="vincent@biz-4-africa.com",
       url="https://github.com/BIZ4Africa/ofxstatement-cd-tmb",
-      download_url="https://github.com/BIZ4Africa/ofxstatement-cd-tmb/archive/v2.0.2.zip",
+      download_url="https://github.com/BIZ4Africa/ofxstatement-cd-tmb/archive/v2.0.3.zip",
       description=("OFXStatement plugin for TMB (DR Congo)"),
       long_description=open("README.md").read(),
       long_description_content_type='text/markdown',
