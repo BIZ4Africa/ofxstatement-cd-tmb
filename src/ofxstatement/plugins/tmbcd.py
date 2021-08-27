@@ -63,7 +63,8 @@ class TmbCdParser(CsvStatementParser):
         self._setFileType()
         stmt = super(TmbCdParser, self).parse()
         total_amount = sum(sl.amount for sl in stmt.lines)
-        stmt.start_balance = D(stmt.end_balance) -total_amount
+        stmt.start_balance = D(stmt.end_balance) - total_amount
+        stmt.start_date= min(sl.date for sl in stmt.lines)
         statement.recalculate_balance(stmt)
         return stmt
 
