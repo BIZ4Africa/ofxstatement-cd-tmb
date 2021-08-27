@@ -115,7 +115,7 @@ class TmbCdParser(CsvStatementParser):
         if not len(line[0]) and not len(line[2]):
             #Continuation of previous line memo
             cur_idx = len(self.statement.lines) - 1
-            self.statement.line[cur_idx].memo = self.statement.line[cur_idx] + " " + line[1]
+            self.statement.lines[cur_idx].memo = self.statement.lines[cur_idx].memo + " " + line[1]
             return None
 
         if (len(line[4])):
