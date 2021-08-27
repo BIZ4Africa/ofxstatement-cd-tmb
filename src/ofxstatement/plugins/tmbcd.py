@@ -112,8 +112,10 @@ class TmbCdParser(CsvStatementParser):
             else:
                 self.date_format = "%d %b %Y"
 
-        if not len(line[4]) and not len(line[5]):
-            #TODO connect to previous line
+        if not len(line[0]) and not len(line[2]):
+            #Continuation of previous line memo
+            cur_idx = len(self.statement.lines) - 1
+            self.statement.line[cur_idx].memo = self.statement.line[cur_idx] + " " + line[1]
             return None
 
         if (len(line[4])):
