@@ -34,13 +34,36 @@ class TmbCdParser(CsvStatementParser):
     }
 
     unique_id_set = set()
+    filetype = None
+
+    def _setFileType(self):
+        self.filetype = "pdf"
+        with open(self.fin.name, newline='') as csvfile:
+            reader = csv.reader(csvfile, delimiter=',', quotechar='"')
+            for line in reader:
+                if len(line) != 7:
+                    self.filetype = "csv"
+                    break
+        if self.filetype == "pdf":
+            self.mappings = {
+                # 'check_no': 3,
+                'date': 2,
+                'refnum': 0,
+                'memo': 1,
+                'amount': 4,
+                'id': 0
+            }
+
     def parse(self):
         """Main entry point for parsers
 
         super() implementation will call to split_records and parse_record to
         process the file.
         """
+        self._setFileType()
         stmt = super(TmbCdParser, self).parse()
+        total_amount = sum(sl.amount for sl in stmt.lines)
+        stmt.start_balance = D(stmt.end_balance) -total_amount
         statement.recalculate_balance(stmt)
         return stmt
 
@@ -70,6 +93,44 @@ class TmbCdParser(CsvStatementParser):
         """Parse given transaction line and return StatementLine object
         """
 
+
+        if self.filetype == "pdf":
+            return self.parse_record_pdf(line)
+        else:
+            return self.parse_record_csv(line)
+
+
+    def parse_record_pdf(self, line):
+
+        if not self.statement.currency:
+            # We are on second  line
+            self.statement.currency = line[6][-3:]
+            self.statement.end_balance = str(line[6][0:-3]).replace(',','')
+            self.statement.end_date = line[2]
+            if(line[2].find('-') != -1):
+                self.date_format = "%d-%b-%y"
+            else:
+                self.date_format = "%d %b %Y"
+
+        if not len(line[4]) and not len(line[5]):
+            #TODO connect to previous line
+            return None
+
+        if (len(line[4])):
+            tx_type="CREDIT"
+        elif len(line[5]):
+            tx_type = "DEBIT"
+
+        amount = line[4][0:-3] if len(line[4]) else "-" + line[5][0:-3]
+        line[4] = str(amount).replace(',', '')
+        stmtline = super(TmbCdParser, self).parse_record(line)
+        stmtline.trntype = tx_type
+        stmtline.id = generate_unique_transaction_id(stmtline, self.unique_id_set)
+
+        return stmtline
+
+
+    def parse_record_csv(self, line):
         #Valuable lines has 9 elements
         if len(line) <=9:
             if line[0] == "Opening Balance":
