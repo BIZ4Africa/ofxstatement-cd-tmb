@@ -42,7 +42,8 @@ class TmbCdParser(CsvStatementParser):
             reader = csv.reader(csvfile, delimiter=',', quotechar='"')
             for line in reader:
                 if len(line) != 7:
-                    self.filetype = "csv"
+                    if (line[0] != 'Reference Number'):
+                        self.filetype = "csv"
                     break
         if self.filetype == "pdf":
             self.mappings = {
@@ -140,6 +141,10 @@ class TmbCdParser(CsvStatementParser):
                 res = line[1].split();
                 self.statement.currency=res[0]
                 self.statement.start_balance=D(res[1])
+                return None
+            if line[0] == "Closing Balance":
+                res = line[1].split();
+                self.statement.end_balance = D(res[1])
                 return None
         elif len(line) < 8:
             return None
