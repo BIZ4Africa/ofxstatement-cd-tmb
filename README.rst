@@ -17,7 +17,7 @@ Installation
 ------------
 
 From PyPI repositories
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: bash
 
