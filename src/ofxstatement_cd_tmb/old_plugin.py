@@ -1,3 +1,5 @@
+from ofxstatement.plugin import Plugin
+
 import csv
 import re
 import random
@@ -9,17 +11,14 @@ from ofxstatement.statement import generate_transaction_id
 from ofxstatement.statement import generate_unique_transaction_id
 
 from ofxstatement.parser import CsvStatementParser
-from ofxstatement.plugin import Plugin
 
 
 class TmbCdPlugin(Plugin):
     """TMB Congo Plugin
     """
-
-    def get_parser(self, filename):
-        f = open(filename, 'r', encoding=self.settings.get("charset", "UTF-8"))
-        parser = TmbCdParser(f)
-        return parser
+    
+    def get_parser(self, filename: str) -> "TmbCdParser":
+        return TmbCdParser(filename)
 
 class TmbCdParser(CsvStatementParser):
 

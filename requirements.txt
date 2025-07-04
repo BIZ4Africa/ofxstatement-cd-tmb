@@ -1,2 +1,1 @@
-appdirs==1.4.3
-ofxstatement==0.6.5
+ofxstatement==0.9.2
