@@ -1,9 +1,9 @@
-===========================
+====================
 ofxstatement-cd-tmb
-===========================
+====================
 
 TMB Congo plugin for ofxstatement
-================================
+==================================
 
 This project provides a custom plugin for `ofxstatement <https://github.com/kedder/ofxstatement>`_ for Trust Merchant Bank (CD). It is based
 on the work done by JBBandos (`ofxstatement-be-ing <https://github.com/jbbandos/ofxstatement-be-ing>`_).

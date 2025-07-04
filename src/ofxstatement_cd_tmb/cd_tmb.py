@@ -9,8 +9,8 @@ class TmbCdPlugin(Plugin):
     """TMB Congo Plugin
     """
 
-    def get_parser(self, filename: str) -> "TmbCdParser":
-        return TmbCdParser(filename)
+    def get_parser(self, filename: str) -> "TmbCdCSVParser":
+        return TmbCdCSVParser(filename)
     
 class TmbCdCSVParser(CsvStatementParser[str]):
     #TODO #5 - Implement CSV and PDF parsing as two parsers
