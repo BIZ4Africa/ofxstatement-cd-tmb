@@ -9,6 +9,7 @@ authors = [
   { name="Business Solutions For Africa", email="info@biz-4-africa.com" },
 ]
 description = "Trust Merchant Bank (CD) plugin for ofxstatement"
+license = "GPL-3.0-or-later"
 readme = "README.rst"
 requires-python = ">=3.9"
 classifiers = [
@@ -18,8 +19,7 @@ classifiers = [
     "Topic :: Office/Business :: Financial :: Accounting",
     "Topic :: Utilities",
     "Environment :: Console",
-    "Operating System :: OS Independent",
-    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent"
 ]
 keywords = ["ofx", "banking", "statement", "plugin", "ofxstatement"]
 dependencies = [
