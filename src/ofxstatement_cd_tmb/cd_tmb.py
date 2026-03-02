@@ -123,6 +123,10 @@ class TmbCdParser(CsvStatementParser):
 
     def parse_record_csv(self, line):
         """Parse CSV export format"""
+        # Skip header row
+        if line[0] == "Transaction Date":
+            return None
+
         # Valuable lines have 9 elements
         if len(line) <= 9:
             if line[0] == "Opening Balance":
@@ -142,10 +146,11 @@ class TmbCdParser(CsvStatementParser):
 
         if not len(line[0]):
             # Continuation of previous line
-            cur_idx = len(self.statement.lines) - 1
-            self.statement.lines[cur_idx].memo = (
-                self.statement.lines[cur_idx].memo + " " + line[2]
-            )
+            if len(self.statement.lines) > 0:
+                cur_idx = len(self.statement.lines) - 1
+                self.statement.lines[cur_idx].memo = (
+                    self.statement.lines[cur_idx].memo + " " + line[2]
+                )
             return None
 
         line[5] = self.fix_amount(line[5])
