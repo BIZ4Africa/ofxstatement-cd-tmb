@@ -1,3 +1,5 @@
+"""OFXStatement plugin for TMB Congo bank."""
+
 import csv
 import re
 from decimal import Decimal as D
@@ -79,6 +81,37 @@ class TmbCdParser(CsvStatementParser):
         reversal_subst = ""
         return re.sub(reversal_re, reversal_subst, result, 0)
 
+    def _clean_date_field(self, date_str):
+        """Clean date field to handle column overlap issues from PDF extraction.
+
+        Extracts valid date pattern from potentially contaminated data.
+        Handles formats like:
+        - 'e-07 Mar 2025' -> '07 Mar 2025'
+        - '07-Mar-25' -> '07-Mar-25'
+        - '07 Mar 2025' -> '07 Mar 2025'
+
+        Args:
+            date_str: Potentially contaminated date string
+
+        Returns:
+            Cleaned date string
+        """
+        if not date_str:
+            return date_str
+
+        # Pattern 1: DD Mon YYYY format (e.g., "07 Mar 2025")
+        match = re.search(r"(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})", date_str)
+        if match:
+            return match.group(1)
+
+        # Pattern 2: DD-Mon-YY format (e.g., "07-Mar-25")
+        match = re.search(r"(\d{1,2}-[A-Za-z]{3}-\d{2})", date_str)
+        if match:
+            return match.group(1)
+
+        # If no pattern matches, return original (may still fail but with clear error)
+        return date_str.strip()
+
     def parse_record(self, line):
         """Parse given transaction line and return StatementLine object"""
         if self.filetype == "pdf":
@@ -107,7 +140,7 @@ class TmbCdParser(CsvStatementParser):
             else:
                 self.date_format = "%d %b %Y"
 
-        if not len(line[0]) and not len(line[2]):
+        if not line[0] and not line[2]:
             # Continuation of previous line memo
             cur_idx = len(self.statement.lines) - 1
             self.statement.lines[cur_idx].memo = (
@@ -115,25 +148,33 @@ class TmbCdParser(CsvStatementParser):
             )
             return None
 
-        if len(line[4]):
+        if line[4]:
             tx_type = "CREDIT"
-        elif len(line[5]):
+        elif line[5]:
             tx_type = "DEBIT"
         else:
             return None
 
         amount = line[4][0:-3] if len(line[4]) else "-" + line[5][0:-3]
         line[4] = str(amount).replace(",", "")
+
+        # Clean date field to handle column overlap issues
+        # Extract valid date pattern from potentially contaminated data
+        line[2] = self._clean_date_field(line[2])
+
         try:
-            stmtline = super(TmbCdParser, self).parse_record(line)
+            statement_line = super(TmbCdParser, self).parse_record(line)
         except ValueError as e:
             raise ValueError(
-                f"Failed to parse PDF record line. Amount: '{amount}', Date: '{line[2]}', Memo: '{line[1]}' - {e}"
+                f"Failed to parse PDF record line. "
+                f"Amount: '{amount}', Date: '{line[2]}', Memo: '{line[1]}' - {e}"
             ) from e
-        stmtline.trntype = tx_type
-        stmtline.id = generate_unique_transaction_id(stmtline, self.unique_id_set)
+        statement_line.trntype = tx_type
+        statement_line.id = generate_unique_transaction_id(
+            statement_line, self.unique_id_set
+        )
 
-        return stmtline
+        return statement_line
 
     def parse_record_csv(self, line):
         """Parse CSV export format"""
@@ -168,9 +209,9 @@ class TmbCdParser(CsvStatementParser):
         elif len(line) < 8:
             return None
 
-        if not len(line[0]):
+        if not line[0]:
             # Continuation of previous line
-            if len(self.statement.lines) > 0:
+            if self.statement.lines:
                 cur_idx = len(self.statement.lines) - 1
                 self.statement.lines[cur_idx].memo = (
                     self.statement.lines[cur_idx].memo + " " + line[2]
@@ -180,17 +221,22 @@ class TmbCdParser(CsvStatementParser):
         try:
             line[5] = self.fix_amount(line[5])
         except (ValueError, IndexError) as e:
+            amount_str = line[5] if len(line) > 5 else "N/A"
             raise ValueError(
-                f"Failed to parse amount from CSV line: '{line[5] if len(line) > 5 else 'N/A'}' - {e}"
+                f"Failed to parse amount from CSV line: '{amount_str}' - {e}"
             ) from e
 
         try:
-            stmtline = super(TmbCdParser, self).parse_record(line)
+            statement_line = super(TmbCdParser, self).parse_record(line)
         except ValueError as e:
+            memo = line[2] if len(line) > 2 else "N/A"
             raise ValueError(
-                f"Failed to parse CSV record. Date: '{line[0]}', Amount: '{line[5]}', Memo: '{line[2] if len(line) > 2 else 'N/A'}' - {e}"
+                f"Failed to parse CSV record. "
+                f"Date: '{line[0]}', Amount: '{line[5]}', Memo: '{memo}' - {e}"
             ) from e
-        stmtline.trntype = "DEBIT" if stmtline.amount < 0 else "CREDIT"
-        stmtline.id = generate_unique_transaction_id(stmtline, self.unique_id_set)
+        statement_line.trntype = "DEBIT" if statement_line.amount < 0 else "CREDIT"
+        statement_line.id = generate_unique_transaction_id(
+            statement_line, self.unique_id_set
+        )
 
-        return stmtline
+        return statement_line
