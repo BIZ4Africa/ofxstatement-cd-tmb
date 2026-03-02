@@ -52,10 +52,12 @@ class TmbCdParser(CsvStatementParser):
         self._set_file_type()
         stmt = super(TmbCdParser, self).parse()
 
-        # Calculate start balance from end balance and transactions
-        if stmt.lines:
+        # Calculate start balance from end balance and transactions only if not already set
+        if stmt.lines and not stmt.start_balance:
             total_amount = sum(sl.amount for sl in stmt.lines)
             stmt.start_balance = D(stmt.end_balance) - total_amount
+            stmt.start_date = min(sl.date for sl in stmt.lines)
+        elif stmt.lines and not stmt.start_date:
             stmt.start_date = min(sl.date for sl in stmt.lines)
 
         statement.recalculate_balance(stmt)
@@ -90,6 +92,7 @@ class TmbCdParser(CsvStatementParser):
         - '(Atm2)6- Aug 2025' -> '6 Aug 2025'
         - '07-Mar-25' -> '07-Mar-25'
         - '07 Mar 2025' -> '07 Mar 2025'
+        - '2023-11-08' -> '2023-11-08' (YYYY-MM-DD)
 
         Args:
             date_str: Potentially contaminated date string
@@ -99,6 +102,16 @@ class TmbCdParser(CsvStatementParser):
         """
         if not date_str:
             return date_str
+
+        # Pattern 0a: YYYY-MM-DD format (numeric date with dashes)
+        match = re.search(r"(\d{4})-(\d{1,2})-(\d{1,2})", date_str)
+        if match:
+            return match.group(0)
+
+        # Pattern 0b: YYYY/MM/DD format (numeric date with slashes)
+        match = re.search(r"(\d{4})/(\d{1,2})/(\d{1,2})", date_str)
+        if match:
+            return match.group(0)
 
         # Pattern 1: DD Mon YYYY format with flexible separators (e.g., "6- Aug 2025", "07 Mar 2025")
         # Match digits for day, optional dash/space, month name, optional dash/space, year
@@ -117,6 +130,41 @@ class TmbCdParser(CsvStatementParser):
         # If no pattern matches, return original (may still fail but with clear error)
         return date_str.strip()
 
+    def _detect_date_format(self, date_str):
+        """Detect the date format from a sample date string.
+
+        Tries to identify common date formats:
+        - "%Y-%m-%d" (e.g., "2023-11-08")
+        - "%d-%b-%y" (e.g., "08-Nov-23")
+        - "%d %b %Y" (e.g., "08 Nov 2023")
+
+        Args:
+            date_str: Sample date string to analyze
+
+        Returns:
+            Best matching date format string
+        """
+        date_str = date_str.strip()
+
+        # Pattern: YYYY-MM-DD (numeric only with dashes)
+        if re.match(r"^\d{4}-\d{1,2}-\d{1,2}$", date_str):
+            return "%Y-%m-%d"
+
+        # Pattern: YYYY/MM/DD (numeric only with slashes)
+        if re.match(r"^\d{4}/\d{1,2}/\d{1,2}$", date_str):
+            return "%Y/%m/%d"
+
+        # Pattern: DD-Mon-YY (with month abbreviations like Nov, Mar, etc.)
+        if re.match(r"^\d{1,2}-[A-Za-z]{3}-\d{2}$", date_str):
+            return "%d-%b-%y"
+
+        # Pattern: DD Mon YYYY (with spaces)
+        if re.match(r"^\d{1,2}\s+[A-Za-z]{3}\s+\d{4}$", date_str):
+            return "%d %b %Y"
+
+        # Default fallback
+        return "%d %b %Y"
+
     def parse_record(self, line):
         """Parse given transaction line and return StatementLine object"""
         if self.filetype == "pdf":
@@ -130,8 +178,47 @@ class TmbCdParser(CsvStatementParser):
             # This is the title line
             return None
 
+        # Handle balance rows injected from PDF text extraction
+        if line[0] == "Opening Balance":
+            # Parse balance: "566.61USD" or "566.61 USD"
+            balance_str = line[1].strip() if len(line) > 1 else ""
+            if balance_str:
+                # Extract numeric value and currency
+                match = re.match(r"^([-\d.,]+)\s*([A-Z]{3})$", balance_str)
+                if match:
+                    value_str = match.group(1).replace(",", "")
+                    currency = match.group(2)
+                    try:
+                        self.statement.start_balance = D(value_str)
+                        if not self.statement.currency:
+                            self.statement.currency = currency
+                    except (ValueError, IndexError) as e:
+                        raise ValueError(
+                            f"Failed to parse opening balance from PDF: '{balance_str}' - {e}"
+                        ) from e
+            return None
+
+        if line[0] == "Closing Balance":
+            # Parse balance: "-190.32USD" or "-190.32 USD"
+            balance_str = line[1].strip() if len(line) > 1 else ""
+            if balance_str:
+                # Extract numeric value and currency
+                match = re.match(r"^([-\d.,]+)\s*([A-Z]{3})$", balance_str)
+                if match:
+                    value_str = match.group(1).replace(",", "")
+                    currency = match.group(2)
+                    try:
+                        self.statement.end_balance = D(value_str)
+                        if not self.statement.currency:
+                            self.statement.currency = currency
+                    except (ValueError, IndexError) as e:
+                        raise ValueError(
+                            f"Failed to parse closing balance from PDF: '{balance_str}' - {e}"
+                        ) from e
+            return None
+
         if not self.statement.currency:
-            # We are on second line
+            # We are on second line (fallback if balances weren't extracted)
             self.statement.currency = line[6][-3:]
             try:
                 self.statement.end_balance = str(line[6][0:-3]).replace(",", "")
@@ -140,10 +227,8 @@ class TmbCdParser(CsvStatementParser):
                     f"Failed to parse end balance from PDF line: '{line[6]}' - {e}"
                 ) from e
             self.statement.end_date = line[2]
-            if line[2].find("-") != -1:
-                self.date_format = "%d-%b-%y"
-            else:
-                self.date_format = "%d %b %Y"
+            # Detect date format from the end_date
+            self.date_format = self._detect_date_format(line[2])
 
         if not line[0] and not line[2]:
             # Continuation of previous line memo
@@ -166,6 +251,10 @@ class TmbCdParser(CsvStatementParser):
         # Clean date field to handle column overlap issues
         # Extract valid date pattern from potentially contaminated data
         line[2] = self._clean_date_field(line[2])
+
+        # Skip rows with empty dates (invalid/corrupted data)
+        if not line[2] or not line[2].strip():
+            return None
 
         try:
             statement_line = super(TmbCdParser, self).parse_record(line)
