@@ -87,6 +87,7 @@ class TmbCdParser(CsvStatementParser):
         Extracts valid date pattern from potentially contaminated data.
         Handles formats like:
         - 'e-07 Mar 2025' -> '07 Mar 2025'
+        - '(Atm2)6- Aug 2025' -> '6 Aug 2025'
         - '07-Mar-25' -> '07-Mar-25'
         - '07 Mar 2025' -> '07 Mar 2025'
 
@@ -99,15 +100,19 @@ class TmbCdParser(CsvStatementParser):
         if not date_str:
             return date_str
 
-        # Pattern 1: DD Mon YYYY format (e.g., "07 Mar 2025")
-        match = re.search(r"(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})", date_str)
+        # Pattern 1: DD Mon YYYY format with flexible separators (e.g., "6- Aug 2025", "07 Mar 2025")
+        # Match digits for day, optional dash/space, month name, optional dash/space, year
+        match = re.search(r"(\d{1,2})[-\s]+([A-Za-z]{3})[-\s]+(\d{4})", date_str)
         if match:
-            return match.group(1)
+            day, month, year = match.groups()
+            # Normalize with single spaces
+            return f"{day} {month} {year}"
 
         # Pattern 2: DD-Mon-YY format (e.g., "07-Mar-25")
-        match = re.search(r"(\d{1,2}-[A-Za-z]{3}-\d{2})", date_str)
+        match = re.search(r"(\d{1,2})-([A-Za-z]{3})-(\d{2})", date_str)
         if match:
-            return match.group(1)
+            # Return as-is with dashes
+            return match.group(0)
 
         # If no pattern matches, return original (may still fail but with clear error)
         return date_str.strip()
