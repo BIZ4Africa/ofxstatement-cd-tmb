@@ -256,6 +256,10 @@ class TmbCdParser(CsvStatementParser):
         if not line[2] or not line[2].strip():
             return None
 
+        # Detect and update date format for this specific record
+        # This handles mixed date formats in the same file
+        self.date_format = self._detect_date_format(line[2])
+
         try:
             statement_line = super(TmbCdParser, self).parse_record(line)
         except ValueError as e:
@@ -319,6 +323,12 @@ class TmbCdParser(CsvStatementParser):
             raise ValueError(
                 f"Failed to parse amount from CSV line: '{amount_str}' - {e}"
             ) from e
+
+        # Clean and detect date format for this record
+        # This handles mixed date formats in the same file
+        if len(line) > 0 and line[0]:
+            line[0] = self._clean_date_field(line[0])
+            self.date_format = self._detect_date_format(line[0])
 
         try:
             statement_line = super(TmbCdParser, self).parse_record(line)
