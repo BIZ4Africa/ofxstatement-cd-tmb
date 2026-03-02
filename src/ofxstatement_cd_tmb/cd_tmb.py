@@ -12,7 +12,7 @@ class TmbCdPlugin(Plugin):
     """TMB Congo Plugin"""
 
     def get_parser(self, filename: str) -> "TmbCdParser":
-        f = open(filename, 'r', encoding=self.settings.get("charset", "UTF-8"))
+        f = open(filename, "r", encoding=self.settings.get("charset", "UTF-8"))
         parser = TmbCdParser(f)
         return parser
 
@@ -21,13 +21,7 @@ class TmbCdParser(CsvStatementParser):
     """Parser for TMB Congo bank statements (supports both CSV and PDF exports)"""
 
     date_format = "%d %b %Y"
-    mappings = {
-        'date': 0,
-        'refnum': 3,
-        'memo': 2,
-        'amount': 5,
-        'id': 3
-    }
+    mappings = {"date": 0, "refnum": 3, "memo": 2, "amount": 5, "id": 3}
 
     unique_id_set = set()
     filetype = None
@@ -36,22 +30,16 @@ class TmbCdParser(CsvStatementParser):
         """Detect whether the file is CSV or PDF export format"""
         self.filetype = "pdf"
         self.fin.seek(0)  # Reset file pointer
-        reader = csv.reader(self.fin, delimiter=',', quotechar='"')
+        reader = csv.reader(self.fin, delimiter=",", quotechar='"')
         for line in reader:
             if len(line) != 7:
-                if line and line[0] != 'Reference Number':
+                if line and line[0] != "Reference Number":
                     self.filetype = "csv"
                 break
         self.fin.seek(0)  # Reset file pointer for parsing
-        
+
         if self.filetype == "pdf":
-            self.mappings = {
-                'date': 2,
-                'refnum': 0,
-                'memo': 1,
-                'amount': 4,
-                'id': 0
-            }
+            self.mappings = {"date": 2, "refnum": 0, "memo": 1, "amount": 4, "id": 0}
 
     def parse(self):
         """Main entry point for parsers
@@ -61,19 +49,19 @@ class TmbCdParser(CsvStatementParser):
         """
         self._set_file_type()
         stmt = super(TmbCdParser, self).parse()
-        
+
         # Calculate start balance from end balance and transactions
         if stmt.lines:
             total_amount = sum(sl.amount for sl in stmt.lines)
             stmt.start_balance = D(stmt.end_balance) - total_amount
             stmt.start_date = min(sl.date for sl in stmt.lines)
-        
+
         statement.recalculate_balance(stmt)
         return stmt
 
     def split_records(self):
         """Return iterable object consisting of a line per transaction"""
-        reader = csv.reader(self.fin, delimiter=',')
+        reader = csv.reader(self.fin, delimiter=",")
         next(reader, None)  # Skip header
         return reader
 
@@ -103,9 +91,9 @@ class TmbCdParser(CsvStatementParser):
         if not self.statement.currency:
             # We are on second line
             self.statement.currency = line[6][-3:]
-            self.statement.end_balance = str(line[6][0:-3]).replace(',', '')
+            self.statement.end_balance = str(line[6][0:-3]).replace(",", "")
             self.statement.end_date = line[2]
-            if line[2].find('-') != -1:
+            if line[2].find("-") != -1:
                 self.date_format = "%d-%b-%y"
             else:
                 self.date_format = "%d %b %Y"
@@ -113,7 +101,9 @@ class TmbCdParser(CsvStatementParser):
         if not len(line[0]) and not len(line[2]):
             # Continuation of previous line memo
             cur_idx = len(self.statement.lines) - 1
-            self.statement.lines[cur_idx].memo = self.statement.lines[cur_idx].memo + " " + line[1]
+            self.statement.lines[cur_idx].memo = (
+                self.statement.lines[cur_idx].memo + " " + line[1]
+            )
             return None
 
         if len(line[4]):
@@ -124,7 +114,7 @@ class TmbCdParser(CsvStatementParser):
             return None
 
         amount = line[4][0:-3] if len(line[4]) else "-" + line[5][0:-3]
-        line[4] = str(amount).replace(',', '')
+        line[4] = str(amount).replace(",", "")
         stmtline = super(TmbCdParser, self).parse_record(line)
         stmtline.trntype = tx_type
         stmtline.id = generate_unique_transaction_id(stmtline, self.unique_id_set)
@@ -153,13 +143,15 @@ class TmbCdParser(CsvStatementParser):
         if not len(line[0]):
             # Continuation of previous line
             cur_idx = len(self.statement.lines) - 1
-            self.statement.lines[cur_idx].memo = self.statement.lines[cur_idx].memo + " " + line[2]
+            self.statement.lines[cur_idx].memo = (
+                self.statement.lines[cur_idx].memo + " " + line[2]
+            )
             return None
 
         line[5] = self.fix_amount(line[5])
 
         stmtline = super(TmbCdParser, self).parse_record(line)
-        stmtline.trntype = 'DEBIT' if stmtline.amount < 0 else 'CREDIT'
+        stmtline.trntype = "DEBIT" if stmtline.amount < 0 else "CREDIT"
         stmtline.id = generate_unique_transaction_id(stmtline, self.unique_id_set)
 
         return stmtline
