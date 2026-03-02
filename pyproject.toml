@@ -30,4 +30,4 @@ dependencies = [
 Homepage = "https://github.com/BIZ4Africa/ofxstatement-cd-tmb"
 
 [project.entry-points."ofxstatement"]
-tmbcd = "tmbcd:TmbCdPlugin"
+tmbcd = "ofxstatement_cd_tmb.cd_tmb:TmbCdPlugin"
