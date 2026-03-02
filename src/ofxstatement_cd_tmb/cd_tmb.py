@@ -88,10 +88,19 @@ class TmbCdParser(CsvStatementParser):
 
     def parse_record_pdf(self, line):
         """Parse PDF export format"""
+        if line[0] == "Reference Number":
+            # This is the title line
+            return None
+
         if not self.statement.currency:
             # We are on second line
             self.statement.currency = line[6][-3:]
-            self.statement.end_balance = str(line[6][0:-3]).replace(",", "")
+            try:
+                self.statement.end_balance = str(line[6][0:-3]).replace(",", "")
+            except (ValueError, IndexError) as e:
+                raise ValueError(
+                    f"Failed to parse end balance from PDF line: '{line[6]}' - {e}"
+                ) from e
             self.statement.end_date = line[2]
             if line[2].find("-") != -1:
                 self.date_format = "%d-%b-%y"
@@ -115,7 +124,12 @@ class TmbCdParser(CsvStatementParser):
 
         amount = line[4][0:-3] if len(line[4]) else "-" + line[5][0:-3]
         line[4] = str(amount).replace(",", "")
-        stmtline = super(TmbCdParser, self).parse_record(line)
+        try:
+            stmtline = super(TmbCdParser, self).parse_record(line)
+        except ValueError as e:
+            raise ValueError(
+                f"Failed to parse PDF record line. Amount: '{amount}', Date: '{line[2]}', Memo: '{line[1]}' - {e}"
+            ) from e
         stmtline.trntype = tx_type
         stmtline.id = generate_unique_transaction_id(stmtline, self.unique_id_set)
 
@@ -132,11 +146,21 @@ class TmbCdParser(CsvStatementParser):
             if line[0] == "Opening Balance":
                 res = line[1].split()
                 self.statement.currency = res[0]
-                self.statement.start_balance = D(res[1])
+                try:
+                    self.statement.start_balance = D(res[1])
+                except (ValueError, IndexError) as e:
+                    raise ValueError(
+                        f"Failed to parse opening balance from CSV: '{line[1]}' - {e}"
+                    ) from e
                 return None
             if line[0] == "Closing Balance":
                 res = line[1].split()
-                self.statement.end_balance = D(res[1])
+                try:
+                    self.statement.end_balance = D(res[1])
+                except (ValueError, IndexError) as e:
+                    raise ValueError(
+                        f"Failed to parse closing balance from CSV: '{line[1]}' - {e}"
+                    ) from e
                 return None
             if line[0] == "Alternate Account Number":
                 # Skip alternate account number line
@@ -153,9 +177,19 @@ class TmbCdParser(CsvStatementParser):
                 )
             return None
 
-        line[5] = self.fix_amount(line[5])
+        try:
+            line[5] = self.fix_amount(line[5])
+        except (ValueError, IndexError) as e:
+            raise ValueError(
+                f"Failed to parse amount from CSV line: '{line[5] if len(line) > 5 else 'N/A'}' - {e}"
+            ) from e
 
-        stmtline = super(TmbCdParser, self).parse_record(line)
+        try:
+            stmtline = super(TmbCdParser, self).parse_record(line)
+        except ValueError as e:
+            raise ValueError(
+                f"Failed to parse CSV record. Date: '{line[0]}', Amount: '{line[5]}', Memo: '{line[2] if len(line) > 2 else 'N/A'}' - {e}"
+            ) from e
         stmtline.trntype = "DEBIT" if stmtline.amount < 0 else "CREDIT"
         stmtline.id = generate_unique_transaction_id(stmtline, self.unique_id_set)
 
