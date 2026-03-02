@@ -144,6 +144,9 @@ class TmbCdParser(CsvStatementParser):
                 res = line[1].split()
                 self.statement.end_balance = D(res[1])
                 return None
+            if line[0] == "Alternate Account Number":
+                # Skip alternate account number line
+                return None
         elif len(line) < 8:
             return None
 
