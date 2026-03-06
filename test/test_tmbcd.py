@@ -6,6 +6,8 @@ from io import StringIO
 
 import pytest
 
+from ofxstatement.exceptions import ParseError
+
 from ofxstatement_cd_tmb.cd_tmb import TmbCdPlugin, TmbCdParser
 
 
@@ -150,6 +152,33 @@ class TestTmbCdParserEdgeCases:
         total_amount = sum(line.amount for line in statement.lines)
         calculated_end = statement.start_balance + total_amount
         assert abs(calculated_end - statement.end_balance) < D("0.01")
+
+    def test_parse_error_on_bad_date_csv(self):
+        """Test that a ParseError with line context is raised on bad date in CSV"""
+        bad_csv = StringIO(
+            "XXXX-123456-01-01,,,,,,,,,\n"
+            "Transaction Date,Value Date,Description,Reference Number,Currency,CREDIT,DEBIT,Currency,Balance\n"
+            "NOT-A-DATE,01 Feb 2020,SOME MEMO,REF999,USD,10.00Cr,USD,100.00,\n"
+        )
+        parser = TmbCdParser(bad_csv)
+        parser._set_file_type()
+        with pytest.raises(ParseError) as exc_info:
+            parser.parse()
+        assert exc_info.value.lineno == 2
+        assert "NOT-A-DATE" in exc_info.value.message
+
+    def test_parse_error_on_bad_date_pdf(self):
+        """Test that a ParseError with line context is raised on bad date in PDF format"""
+        bad_csv = StringIO(
+            "REF001,Some memo,NOT-A-DATE,prev_bal,10.00USD,,,\n"
+            "REF001,Some memo,NOT-A-DATE,prev_bal,,10.00USD,,\n"
+        )
+        parser = TmbCdParser(bad_csv)
+        parser.filetype = "pdf"
+        parser.mappings = {"date": 2, "refnum": 0, "memo": 1, "amount": 4, "id": 0}
+        with pytest.raises(ParseError) as exc_info:
+            parser.parse()
+        assert exc_info.value.lineno > 0
 
 
 if __name__ == "__main__":

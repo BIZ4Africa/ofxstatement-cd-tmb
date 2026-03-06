@@ -5,6 +5,7 @@ import re
 from decimal import Decimal as D
 
 from ofxstatement import statement
+from ofxstatement.exceptions import ParseError
 from ofxstatement.parser import CsvStatementParser
 from ofxstatement.plugin import Plugin
 from ofxstatement.statement import generate_unique_transaction_id
@@ -167,10 +168,16 @@ class TmbCdParser(CsvStatementParser):
 
     def parse_record(self, line):
         """Parse given transaction line and return StatementLine object"""
-        if self.filetype == "pdf":
-            return self.parse_record_pdf(line)
-        else:
-            return self.parse_record_csv(line)
+        try:
+            if self.filetype == "pdf":
+                return self.parse_record_pdf(line)
+            else:
+                return self.parse_record_csv(line)
+        except (ValueError, IndexError) as e:
+            raise ParseError(
+                self.cur_record,
+                f"Cannot parse line {self.cur_record}: {e}\nLine content: {line}",
+            ) from e
 
     def parse_record_pdf(self, line):
         """Parse PDF export format"""
@@ -301,8 +308,8 @@ class TmbCdParser(CsvStatementParser):
                         f"Failed to parse closing balance from CSV: '{line[1]}' - {e}"
                     ) from e
                 return None
-            if line[0] == "Alternate Account Number":
-                # Skip alternate account number line
+            if line[0] in ("Alternate Account Number", "Transaction Date"):
+                # Skip metadata/header lines
                 return None
         elif len(line) < 8:
             return None
